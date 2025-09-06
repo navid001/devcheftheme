@@ -1,0 +1,115 @@
+
+{{ 'slider.css' | asset_url | stylesheet_tag }}
+
+<div class="collection page-width">
+  <div class="title-wrapper-with-link">
+	<h2 class="title{% if section.settings.title == blank %} title--no-heading{% endif %}">{{ section.settings.title | escape }}</h2>
+  </div>
+</div>
+<div class="dawn-product-slider">
+   <div class="carousel">
+      {% for block in section.blocks %}
+      {% assign product = all_products[block.settings.product_item] %}
+      <div class="carousel-cell">
+         <a href="{{ product.url }}">
+            <img data-flickity-lazyload="{{ product.featured_image | img_url: 'master' }}"  border="0" />
+            <p class="title">{{ product.title }}</p>
+            <p class="price">{{ product.price | money }}</p>
+         </a>
+      </div>
+      {% endfor %}
+   </div>
+
+</div>
+{% assign nav_range = section.settings.navigation_amount %}
+{% style %}
+	@media only screen and ( min-width: 1201px ) {
+		{% if nav_range == 2 %}
+        .dawn-product-slider .carousel-cell {
+            width: calc(49% - 10px);
+        }
+		{% elsif nav_range == 3 %}
+        .dawn-product-slider .carousel-cell {
+          width: calc(32% - 10px);
+        }
+		{% elsif nav_range == 4 %}
+        .dawn-product-slider .carousel-cell {
+          width: calc(24% - 10px);
+         }
+		{% endif %}
+    }
+    .flickity-page-dots .dot {
+    	background: {{ section.settings.navigation_color }};
+    }
+    .flickity-button-icon {
+    	color: {{ section.settings.navigation_color }};
+    }
+{% endstyle %}
+<script>
+   var elem = document.querySelector('.dawn-product-slider .carousel');
+   var flkty = new Flickity( elem, {
+     contain: true,
+     imagesLoaded: true,
+     lazyLoad: 2,
+     wrapAround: true,
+     pageDots: true,
+   });
+   {% if request.design_mode %}
+   document.addEventListener("shopify:section:load", function(event) {
+     var elem = document.querySelector('.dawn-product-slider .carousel');
+     var flkty = new Flickity( elem, {
+       contain: true,
+       imagesLoaded: true,
+       lazyLoad: 2,
+       wrapAround: true,
+       pageDots: true,
+     });
+   });
+   {% endif %}
+</script>
+{% schema %}
+{
+  "name": "Products slider",
+  "settings": [
+    {
+      "type": "range",
+      "id": "navigation_amount",
+      "min": 2,
+      "max": 4,
+      "step": 1,
+      "default": 3,
+      "label": "Change the number of cards in view"
+    },
+    {
+      "type": "color",
+      "id": "navigation_color",
+      "label": "Change color of the pagination|navigation|scrollbar"
+    },
+	{
+      "type": "text",
+      "id": "title",
+      "default": "Products slider",
+      "label": "t:sections.featured-collection.settings.title.label"
+    }
+  ] ,
+  	"blocks": [
+	{
+        "type": "card",
+        "name": "Product card",
+        "settings": [
+          {
+            "type": "product",
+            "id": "product_item",
+            "label": "Choose the product you want to displayed"
+          }
+    	]
+	}
+  ] ,
+  "presets": [
+    {
+      "name": "Product slider",
+      "category":"Custom"
+    }
+  ]
+}
+{% endschema %}  

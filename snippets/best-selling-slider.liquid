@@ -1,0 +1,155 @@
+<div class="best-selling-slider ">
+   <h3>Best Selling Products</h3>
+        <hr>
+  <div class="owl-carousel owl-theme best-selling">
+           {%- for product in collection.products  -%}
+<!--       {% assign product1 = all_products[block.settings.product_item] %} -->
+      <div class="item">
+         <a href="{{ product.url }}">
+            <img src="{{ product.featured_image | img_url: 'master' }}"  border="0" style="max-width:280px;" />
+            <p class="title">{{ product.title }}</p>
+<!--             <p class="price">{{ product.price | money }}</p> -->
+           
+         </a>
+        <product-form>
+             {% assign card_product = product %}
+                {%- form 'product',
+                  card_product,
+                  id: product_form_id,
+                  class: 'form',
+                  novalidate: 'novalidate',
+                  data-type: 'add-to-cart-form',
+                   vendor:card_product.vendor,
+                   onsubmit:'checkCartVendor(event)'
+                -%}
+                  <input
+                    type="hidden"
+                    name="id"
+                    value="{{ card_product.selected_or_first_available_variant.id }}"
+                    disabled
+                  >
+                  <button
+                    id="{{ product_form_id }}-submit"
+                    type="submit"
+                    name="add"
+                    class="quick-add__submit button button--full-width button--primrary{% if horizontal_quick_add %} card--horizontal__quick-add{% endif %}"
+                    aria-haspopup="dialog"
+                    aria-labelledby="{{ product_form_id }}-submit title-{{ section_id }}-{{ card_product.id }}"
+                    aria-live="polite"
+                    data-sold-out-message="true"
+                  vendor={{ card_product.vendor }}
+                    {% if card_product.selected_or_first_available_variant.available == false %}
+                      disabled
+                    {% endif %}
+                  >
+                    <span>
+                      {%- if card_product.selected_or_first_available_variant.available -%}
+                      Order Now
+                      {%- else -%}
+                        {{ 'products.product.sold_out' | t }}
+                      {%- endif -%}
+                    </span>
+                    <span class="sold-out-message hidden">
+                      {{ 'products.product.sold_out' | t }}
+                    </span>
+                    {%- if horizontal_quick_add -%}
+                      <span class="icon-wrap">{% render 'icon-plus' %}</span>
+                    {%- endif -%}
+                    <div class="loading-overlay__spinner hidden">
+                      <svg
+                        aria-hidden="true"
+                        focusable="false"
+                        class="spinner"
+                        viewBox="0 0 66 66"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <circle class="path" fill="none" stroke-width="6" cx="33" cy="33" r="30"></circle>
+                      </svg>
+                    </div>
+                  </button>
+
+
+
+
+
+
+                  
+         
+                {%- endform -%}
+              </product-form>
+      </div>
+      {% endfor %}
+   </div>
+
+</div>
+
+
+{% assign nav_range = 1 %}
+{% style %}
+  .best-selling-slider .carousel-cell {
+                       width: 100%;
+        }
+
+    .flickity-page-dots .dot {
+    	background: {{ section.settings.navigation_color }};
+    }
+    .flickity-button-icon {
+    	color: {{ section.settings.navigation_color }};
+    }
+    .best-selling-slider{
+    border: 0.5px solid #C8C8C8;
+    border-radius: 10px;
+    min-width: 280px;
+    padding: 20px ;
+      max-width:300px;
+  }
+ .best-selling-slider a{padding:0 15px;display: block;}
+
+   .best-selling-slider h3{
+    padding:0;
+    font-size:22px;
+    margin-bottom:5px;
+  }
+    .best-selling-slider hr{
+      border: none;
+    border-top: 1px solid #f15a25;
+    margin-bottom: 30px ;
+      margin-top:0px;
+    max-width: 80px;
+    background: none;
+    height: 0px;
+}
+  .best-selling-slider img{
+    width:100%;
+  }
+   .best-selling-slider p.title{
+     font-weight: 700;
+font-size: 22px;
+line-height: 33px;
+/* identical to box height */
+
+letter-spacing: 0.02em;
+    margin: 10px 0;
+color: #000000;
+   }
+  .best-selling-slider p.price{}
+  .best-selling-slider a{text-decoration:none;text-transform:capitalize;}
+{% endstyle %}
+<script>
+ $('.owl-carousel.best-selling').owlCarousel({
+    loop:true,
+    margin:10,
+    nav:true,
+    responsive:{
+        0:{
+            items:1
+        },
+        600:{
+            items:1
+        },
+        1000:{
+            items:1
+        }
+    }
+})
+</script>

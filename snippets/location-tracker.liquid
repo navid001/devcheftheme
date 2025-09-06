@@ -1,0 +1,416 @@
+<!-- location-tracker.liquid -->
+<div class="location-tracker" id="locationTracker">
+  <div class="location-display">
+    <span class="location-icon">📍</span>
+    <span id="currentLocation">Detecting location...</span>
+    <button id="changeLocationBtn" class="change-location-btn">Change</button>
+  </div>
+
+  <div class="location-modal" id="locationModal" style="display: none;">
+    <div class="modal-content">
+      <span class="close-btn" id="closeModal">&times;</span>
+      <h3>Set Your Location</h3>
+
+      <div class="location-options">
+        <button id="detectLocationBtn" class="detect-btn">
+          <span class="detect-icon">📡</span> Auto-detect my location
+        </button>
+
+        <div class="zip-input">
+          <label for="zipCodeInput">Enter ZIP Code:</label>
+          <input type="text" id="zipCodeInput" placeholder="Enter ZIP code" maxlength="5" pattern="[0-9]*">
+          <button id="submitZipBtn">Set Location</button>
+        </div>
+      </div>
+
+      <div id="locationError" class="error-message" style="display: none;"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const locationTracker = {
+      elements: {
+        currentLocation: document.getElementById('currentLocation'),
+        changeLocationBtn: document.getElementById('changeLocationBtn'),
+        locationModal: document.getElementById('locationModal'),
+        closeModal: document.getElementById('closeModal'),
+        detectLocationBtn: document.getElementById('detectLocationBtn'),
+        zipCodeInput: document.getElementById('zipCodeInput'),
+        submitZipBtn: document.getElementById('submitZipBtn'),
+        locationError: document.getElementById('locationError')
+      },
+      
+      storedZipCode: null,
+      
+      init: function() {
+        // Check if we have a stored zip code
+        this.storedZipCode = localStorage.getItem('userZipCode');
+        
+        if (this.storedZipCode) {
+          this.elements.currentLocation.textContent = `ZIP: ${this.storedZipCode}`;
+        } else {
+          // Try to auto-detect on page load
+          this.detectLocation();
+        }
+        
+        // Set up event listeners
+        this.setupEventListeners();
+      },
+      
+      setupEventListeners: function() {
+        const self = this;
+        
+        this.elements.changeLocationBtn.addEventListener('click', function() {
+          self.showModal();
+        });
+        
+        this.elements.closeModal.addEventListener('click', function() {
+          self.hideModal();
+        });
+        
+        this.elements.detectLocationBtn.addEventListener('click', function() {
+          self.detectLocation();
+        });
+        
+        this.elements.submitZipBtn.addEventListener('click', function() {
+          self.setZipCodeManually();
+        });
+        
+        this.elements.zipCodeInput.addEventListener('keypress', function(e) {
+          if (e.key === 'Enter') {
+            self.setZipCodeManually();
+          }
+        });
+        
+        // Close modal when clicking outside
+        window.addEventListener('click', function(e) {
+          if (e.target === self.elements.locationModal) {
+            self.hideModal();
+          }
+        });
+      },
+      
+      showModal: function() {
+        this.elements.locationModal.style.display = 'flex';
+      },
+      
+      hideModal: function() {
+        this.elements.locationModal.style.display = 'none';
+      },
+      
+      detectLocation: function() {
+        const self = this;
+        
+        if (navigator.geolocation) {
+          self.elements.currentLocation.textContent = 'Detecting...';
+          
+          navigator.geolocation.getCurrentPosition(
+            function(position) {
+              // Get zip code from coordinates
+              const lat = position.coords.latitude;
+              const lng = position.coords.longitude;
+              
+              // Call function to get zip code from coordinates
+              self.getZipFromCoordinates(lat, lng);
+            },
+            function(error) {
+              console.error('Geolocation error:', error);
+              self.elements.currentLocation.textContent = 'Location detection failed';
+              self.showLocationError('Could not detect your location. Please enter your ZIP code manually.');
+            }
+          );
+        } else {
+          self.elements.currentLocation.textContent = 'Geolocation not supported';
+          self.showLocationError('Your browser does not support geolocation. Please enter your ZIP code manually.');
+        }
+      },
+      
+      getZipFromCoordinates: function(lat, lng) {
+        const self = this;
+        
+        // Use a geocoding service to get ZIP code
+        // For this example, we'll use the free Nominatim service (OpenStreetMap)
+        const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1`;
+        
+        fetch(url)
+          .then(response => response.json())
+          .then(data => {
+            if (data && data.address && data.address.postcode) {
+              const zipCode = data.address.postcode.substring(0, 5); // Get first 5 digits if longer
+              self.setZipCode(zipCode);
+            } else {
+              throw new Error('Could not find ZIP code in the response');
+            }
+          })
+          .catch(error => {
+            console.error('Error getting ZIP code:', error);
+            self.elements.currentLocation.textContent = 'Could not determine ZIP code';
+            self.showLocationError('Could not determine your ZIP code. Please enter it manually.');
+          });
+      },
+      
+      setZipCodeManually: function() {
+        const zipCode = this.elements.zipCodeInput.value.trim();
+        
+        // Simple validation for US zip codes
+        const zipRegex = /^\d{5}$/;
+        
+        if (zipRegex.test(zipCode)) {
+          this.setZipCode(zipCode);
+          this.hideModal();
+        } else {
+          this.showLocationError('Please enter a valid 5-digit ZIP code.');
+        }
+      },
+      
+      setZipCode: function(zipCode) {
+          const self = this;
+          
+          console.log(`[${new Date().toISOString()}] setZipCode started with zipCode: ${zipCode}`);
+          
+          // Check cart compatibility before applying the change
+          if (window.cartCompatibilityChecker) {
+            
+            // Show loading state
+            self.elements.currentLocation.textContent = 'Checking compatibility...';
+            
+            window.cartCompatibilityChecker.checkCartCompatibility(zipCode, function(cancelled) {
+              // Only proceed if the user didn't cancel the change
+              if (!cancelled) {
+                self.completeZipCodeChange(zipCode);
+              } else {
+                // Revert to previous location display
+                if (self.storedZipCode) {
+                  self.elements.currentLocation.textContent = `ZIP: ${self.storedZipCode}`;
+                } else {
+                  self.elements.currentLocation.textContent = 'Detecting location...';
+                }
+              }
+            });
+            
+          } else {
+            this.completeZipCodeChange(zipCode);
+          }
+      },      
+      
+      completeZipCodeChange: function(zipCode) {
+        // Store the zip code
+        localStorage.setItem('userZipCode', zipCode);
+        this.storedZipCode = zipCode;
+      
+        // Update display
+        this.elements.currentLocation.textContent = `ZIP: ${zipCode}`;
+        
+        // Clear any errors
+        this.hideLocationError();
+        
+        // Reload page to apply new location pricing
+        // setTimeout(() => {
+        //   window.location.reload();
+        // }, 1000);
+      }, 
+      showLocationError: function(message) {
+        this.elements.locationError.textContent = message;
+        this.elements.locationError.style.display = 'block';
+      },
+      
+      hideLocationError: function() {
+        this.elements.locationError.style.display = 'none';
+      }
+    };
+    
+    // Initialize the location tracker
+    locationTracker.init();
+  });
+</script>
+
+<style>
+  .location-tracker {
+    margin: 8px 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    background-color: #f8f8f8;
+    border-radius: 6px;
+    border-left: 4px solid #F15A25;
+    border-right: 4px solid #F15A25;
+    font-size: 16px;
+    font-weight: 500;
+  }
+
+  .location-display {
+    margin: 0 auto;
+    padding: 8px 15px;
+    max-width: 300px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+  }
+
+  .location-icon {
+    margin-right: 8px;
+    font-size: 16px;
+  }
+
+  #currentLocation {
+    flex: 1;
+    color: #333;
+  }
+
+  .change-location-btn {
+    background-color: #F15A25;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 6px 12px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: background-color 0.2s ease;
+  }
+
+  .change-location-btn:hover {
+    background-color: #e14a1f;
+  }
+
+  .location-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .modal-content {
+    background-color: white;
+    padding: 30px;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 420px;
+    position: relative;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  }
+
+  .close-btn {
+    position: absolute;
+    top: 15px;
+    right: 20px;
+    font-size: 28px;
+    cursor: pointer;
+    color: #666;
+    line-height: 1;
+  }
+
+  .close-btn:hover {
+    color: #F15A25;
+  }
+
+  .modal-content h3 {
+    margin-top: 0;
+    margin-bottom: 25px;
+    font-size: 20px;
+    font-weight: 600;
+    color: #333;
+  }
+
+  .location-options {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .detect-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 16px;
+    background-color: #f8f8f8;
+    border: 2px solid #F15A25;
+    border-radius: 6px;
+    cursor: pointer;
+    width: 100%;
+    font-size: 16px;
+    font-weight: 500;
+    color: #F15A25;
+    transition: all 0.2s ease;
+  }
+
+  .detect-btn:hover {
+    background-color: #F15A25;
+    color: white;
+  }
+
+  .detect-icon {
+    margin-right: 8px;
+    font-size: 16px;
+  }
+
+  .zip-input {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .zip-input label {
+    font-size: 16px;
+    font-weight: 500;
+    color: #333;
+  }
+
+  #zipCodeInput {
+    padding: 12px;
+    border: 2px solid #ddd;
+    border-radius: 6px;
+    font-size: 16px;
+    transition: border-color 0.2s ease;
+  }
+
+  #zipCodeInput:focus {
+    outline: none;
+    border-color: #F15A25;
+  }
+
+  #submitZipBtn {
+    padding: 12px;
+    background-color: #F15A25;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 500;
+    transition: background-color 0.2s ease;
+  }
+
+  #submitZipBtn:hover {
+    background-color: #e14a1f;
+  }
+
+  .error-message {
+    margin-top: 15px;
+    color: #e53935;
+    font-size: 14px;
+    font-weight: 500;
+    text-align: center;
+    padding: 8px;
+    background-color: #ffebee;
+    border-radius: 4px;
+    border-left: 3px solid #e53935;
+  }
+
+  @media (max-width: 768px) {
+    .location-tracker-container .location-display {
+      max-width: 100%;
+    }
+
+    .location-tracker-container {
+      padding: 0 10px;
+    }
+  }
+</style>

@@ -1,0 +1,6 @@
+{% assign zip_codes = collection.metafields.custom.zip_codes %}
+{% if zip_codes %}
+  {"zip_codes": {{ zip_codes.value }}}
+{% else %}
+  {"zip_codes": []}
+{% endif %}

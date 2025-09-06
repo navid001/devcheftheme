@@ -1,0 +1,281 @@
+{% comment %}
+  Input: vendor_name - The name of the vendor used to determine the delivery windows
+  Output: Rendered countdown timer if a delivery window is available
+{% endcomment %}
+
+{% comment %} Find vendor's delivery windows from metafields {% endcomment %}
+{% assign delivery_windows = null %}
+
+{% comment %} Hardcode vendor names for odd vendor tags {% endcomment %}
+{% if vendor_name == 'Green' %}
+  {% assign vendor_name="Grocery" %}
+{% elsif vendor_name == 'Chameli' %}
+  {% assign vendor_name="Chameli Restaurant" %}
+{% elsif vendor_name == 'Salima' %}
+  {% assign vendor_name="Salima Specialties" %}
+{% endif %}
+
+{% comment %} Iterate through collections to find the vendor {% endcomment %}
+{% for collection in collections %}
+  {% if collection.title == vendor_name %}
+    {% assign delivery_windows_json = collection.metafields.custom.delivery_window %}
+    {% if delivery_windows_json %}
+      {%- assign delivery_windows = delivery_windows_json.value | parse_json -%}
+      {% break %}
+    {% endif %}
+  {% endif %}
+{% endfor %}
+
+{% comment %} Validate that delivery windows were found {% endcomment %}
+{% if delivery_windows == null %}
+  {% comment %} Handle case where no delivery windows are found {% endcomment %}
+  <div class="no-window-message">No delivery windows found for vendor: {{ vendor_name }}</div>
+  {% break %}
+{% endif %}
+
+{% comment %} Get current date/time {% endcomment %}
+{% assign now_day = 'now' | date: '%A' | downcase %}
+{% assign current_time = 'now' | date: '%H%M' | plus: 0 %}
+
+{% comment %} Find the next available delivery window {% endcomment %}
+{% assign next_window = null %}
+{% assign closest_days_away = 7 %}
+
+{% for window in delivery_windows %}
+  {% comment %} Parse window details {% endcomment %}
+  {% assign order_by_parts = window.order_by | split: '_' %}
+  {% assign order_by_day = order_by_parts[0] | downcase %}
+  {% assign order_by_time = order_by_parts[1] | replace: ':', '' | plus: 0 %}
+
+  {% comment %} Convert days to numeric values for comparison {% endcomment %}
+  {% case now_day %}
+    {% when 'sunday' -%}
+      {%- assign current_day_num = 0 %}
+    {% when 'monday' -%}
+      {%- assign current_day_num = 1 %}
+    {% when 'tuesday' -%}
+      {%- assign current_day_num = 2 %}
+    {% when 'wednesday' -%}
+      {%- assign current_day_num = 3 %}
+    {% when 'thursday' -%}
+      {%- assign current_day_num = 4 %}
+    {% when 'friday' -%}
+      {%- assign current_day_num = 5 %}
+    {% when 'saturday' -%}
+      {%- assign current_day_num = 6 %}
+  {% endcase %}
+
+  {% case order_by_day %}
+    {% when 'sunday' -%}
+      {%- assign window_day_num = 0 %}
+    {% when 'monday' -%}
+      {%- assign window_day_num = 1 %}
+    {% when 'tuesday' -%}
+      {%- assign window_day_num = 2 %}
+    {% when 'wednesday' -%}
+      {%- assign window_day_num = 3 %}
+    {% when 'thursday' -%}
+      {%- assign window_day_num = 4 %}
+    {% when 'friday' -%}
+      {%- assign window_day_num = 5 %}
+    {% when 'saturday' -%}
+      {%- assign window_day_num = 6 %}
+  {% endcase %}
+
+  {% comment %} Calculate days until this window's order_by day {% endcomment %}
+  {% assign days_away = window_day_num | minus: current_day_num %}
+  {% if days_away < 0 %}
+    {% assign days_away = days_away | plus: 7 %}
+  {% endif %}
+
+  {% comment %} If same day, check if current time is before order_by time {% endcomment %}
+  {% if days_away == 0 %}
+    {% if current_time <= order_by_time %}
+      {% comment %} This window is valid today {% endcomment %}
+      {% assign days_away = 0 %}
+    {% else %}
+      {% comment %} We missed today's window, so the next one is in 7 days {% endcomment %}
+      {% assign days_away = 6 %}
+    {% endif %}
+  {% endif %}
+
+  {% comment %} Track the closest upcoming window {% endcomment %}
+  {% if days_away < closest_days_away %}
+    {% assign closest_days_away = days_away %}
+    {% assign next_window = window %}
+  {% endif %}
+{% endfor %}
+
+{% comment %} Format and display the next available delivery window {% endcomment %}
+{% if next_window %}
+  {% comment %} Format Order By Time {% endcomment %}
+  {% assign order_by_parts = next_window.order_by | split: '_' %}
+  {% assign order_by_day = order_by_parts[0] | capitalize %}
+  {% assign order_by_time_parts = order_by_parts[1] | split: ':' %}
+  {% assign order_by_hour = order_by_time_parts[0] | plus: 0 %}
+  {% assign order_by_minute = order_by_time_parts[1] | default: '00' %}
+
+  {% comment %} Convert Order By Time to 12-hour format with AM/PM {% endcomment %}
+  {% if order_by_hour > 12 %}
+    {% assign order_by_hour_12 = order_by_hour | minus: 12 %}
+    {% assign order_by_ampm = 'PM' %}
+  {% elsif order_by_hour == 12 %}
+    {% assign order_by_hour_12 = 12 %}
+    {% assign order_by_ampm = 'PM' %}
+  {% elsif order_by_hour == 0 %}
+    {% assign order_by_hour_12 = 12 %}
+    {% assign order_by_ampm = 'AM' %}
+  {% else %}
+    {% assign order_by_hour_12 = order_by_hour %}
+    {% assign order_by_ampm = 'AM' %}
+  {% endif %}
+
+  {% comment %} Calculate EST date based on order by day {% endcomment %}
+  {% assign current_timestamp = 'now' | date: '%s' | plus: 0 %}
+  {% assign days_to_add = closest_days_away | plus: 2 %}
+  {% if vendor_name == 'Grocery' %}
+    {% assign days_to_add = days_to_add | plus: 1 %}
+  {% endif %}
+  {% assign seconds_to_add = 86400 | times: days_to_add %}
+  {% assign order_by_date = current_timestamp | plus: seconds_to_add | date: '%d.%m' %}
+
+  {% comment %} Format Ship By Time {% endcomment %}
+  {% assign ship_by_parts = next_window.ship_by | split: '_' %}
+  {% assign ship_by_day = ship_by_parts[0] | capitalize %}
+  {% assign ship_by_time_parts = ship_by_parts[1] | split: ':' %}
+  {% assign ship_by_hour = ship_by_time_parts[0] | plus: 0 %}
+  {% assign ship_by_minute = ship_by_time_parts[1] | default: '00' %}
+
+  {% comment %} Convert Ship By Time to 12-hour format with AM/PM {% endcomment %}
+  {% if ship_by_hour > 12 %}
+    {% assign ship_by_hour_12 = ship_by_hour | minus: 12 %}
+    {% assign ship_by_ampm = 'PM' %}
+  {% elsif ship_by_hour == 12 %}
+    {% assign ship_by_hour_12 = 12 %}
+    {% assign ship_by_ampm = 'PM' %}
+  {% elsif ship_by_hour == 0 %}
+    {% assign ship_by_hour_12 = 12 %}
+    {% assign ship_by_ampm = 'AM' %}
+  {% else %}
+    {% assign ship_by_hour_12 = ship_by_hour %}
+    {% assign ship_by_ampm = 'AM' %}
+  {% endif %}
+
+  {% comment %} Format Delivery By Time {% endcomment %}
+  {% assign delivery_by_parts = next_window.delivery_by | split: '_' %}
+  {% assign delivery_by_day = delivery_by_parts[0] | capitalize %}
+  {% assign delivery_by_time_parts = delivery_by_parts[1] | split: ':' %}
+  {% assign delivery_by_hour = delivery_by_time_parts[0] | plus: 0 %}
+  {% assign delivery_by_minute = delivery_by_time_parts[1] | default: '00' %}
+
+  {% comment %} Convert Delivery By Time to 12-hour format with AM/PM {% endcomment %}
+  {% if delivery_by_hour > 12 %}
+    {% assign delivery_by_hour_12 = delivery_by_hour | minus: 12 %}
+    {% assign delivery_by_ampm = 'PM' %}
+  {% elsif delivery_by_hour == 12 %}
+    {% assign delivery_by_hour_12 = 12 %}
+    {% assign delivery_by_ampm = 'PM' %}
+  {% elsif delivery_by_hour == 0 %}
+    {% assign delivery_by_hour_12 = 12 %}
+    {% assign delivery_by_ampm = 'AM' %}
+  {% else %}
+    {% assign delivery_by_hour_12 = delivery_by_hour %}
+    {% assign delivery_by_ampm = 'AM' %}
+  {% endif %}
+
+  {% comment %} Create formatted display strings {% endcomment %}
+  {% assign delivery_display = delivery_by_day
+    | append: ' '
+    | append: delivery_by_hour_12
+    | append: ':'
+    | append: delivery_by_minute
+    | append: delivery_by_ampm
+  %}
+  {% assign order_by_display = order_by_day
+    | append: ' '
+    | append: order_by_hour_12
+    | append: ':'
+    | append: order_by_minute
+    | append: order_by_ampm
+  %}
+  {% assign ship_by_display = ship_by_day
+    | append: ' '
+    | append: ship_by_hour_12
+    | append: ':'
+    | append: ship_by_minute
+    | append: ship_by_ampm
+  %}
+
+  {% comment %} Create a unique ID for the countdown timer {% endcomment %}
+  {% assign timestamp = 'now' | date: '%s%N' %}
+  {% assign random_string = timestamp | append: forloop.index0 | append: forloop.index | sha1 %}
+  {% assign counter_id = 'countdown-' | append: random_string | slice: 0, 12 %}
+
+  {% comment %} Render the countdown timer {% endcomment %}
+  <div class="countdown-container">
+    <div class="countdown-message">
+      Order within <span id="{{ counter_id }}" class="countdown-highlight"></span>
+      to get your order by
+      <span class="delivery-time">{{ delivery_by_day }} <span class="est-order-by">({{ order_by_date  }} EST)</span></span>
+    </div>
+    {% comment %}<small>(Orders must be placed by {{ order_by_display }} for this delivery window.)</small>{% endcomment %}
+  </div>
+
+  {% comment %}Store countdown data and additional EST date information as a data attribute for easier parsing{% endcomment %}
+  <script
+    data-countdown-data='{"orderByDay": "{{ order_by_day | downcase }}", "orderByHour": {{ order_by_hour }}, "orderByMinute": {{ order_by_minute | default: 0 }}, "orderByDate": "{{ est_order_by_formatted }}"}'
+    type="application/json"
+  ></script>
+{% else %}
+  <div class="no-window-message">No available delivery windows found for the current time.</div>
+{% endif %}
+
+<style>
+  .countdown-container {
+    background-color: #f8f8f8;
+    border-radius: 6px;
+    padding: 10px 15px;
+    margin-top: 10px;
+    margin-bottom: 10px;
+    border-left: 4px solid #F15A25;
+    border-right: 4px solid #F15A25;
+  }
+  .countdown-message {
+    font-size: 16px;
+    font-weight: 500;
+  }
+  .countdown-highlight {
+    color: #F15A25;
+    font-weight: 700;
+  }
+  .delivery-time {
+    font-weight: 600;
+  }
+  .no-window-message {
+  background-color: #f8f8f8;
+  border-radius: 6px;
+  padding: 10px 15px;
+  margin-top: 10px;
+  border-left: 4px solid #F15A25;
+  border-right: 4px solid #F15A25;
+  color: #666;
+  font-size: 16px;
+  font-weight: 500;
+  text-align: center;
+}
+
+</style>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Register this countdown timer
+    if (typeof DeliveryCountdown !== 'undefined') {
+      DeliveryCountdown.registerCountdown(
+        '{{ counter_id }}',
+        '{{ order_by_day | downcase }}',
+        {{ order_by_hour }},
+        {{ order_by_minute | default: 0 }}
+      );
+    }
+  });
+</script>

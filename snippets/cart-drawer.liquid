@@ -1,0 +1,1290 @@
+{% comment %}
+  Renders cart drawer
+
+  Usage:
+  {% render 'cart-drawer' %}
+{% endcomment %}
+
+<script src="{{ 'cart.js' | asset_url }}" defer="defer"></script>
+
+<style>
+    .drawer {
+      visibility: hidden;
+    }
+  /* Updated Cart Compatibility Modal Styles */
+  .cart-compatibility-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1001;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .cart-compatibility-modal.active {
+    display: flex;
+  }
+
+  .cart-compatibility-modal-content {
+    background-color: white;
+    padding: 24px;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 520px;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+    border: 1px solid #e5e5e5;
+  }
+
+  .cart-compatibility-modal-content h3 {
+    color: #333;
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    text-align: center;
+  }
+
+  .cart-compatibility-modal-content p {
+    color: #666;
+    font-size: 15px;
+    line-height: 1.5;
+    margin-bottom: 16px;
+    text-align: center;
+  }
+
+  .incompatible-items-list {
+    margin: 20px 0;
+    max-height: 300px;
+    overflow-y: auto;
+    background-color: #f8f8f8;
+    border-radius: 8px;
+    padding: 12px;
+    border-left: 3px solid #F15A25;
+    border-right: 3px solid #F15A25;
+  }
+
+  .affected-item {
+    display: flex;
+    align-items: center;
+    padding: 12px;
+    border-bottom: 1px solid #e0e0e0;
+    background-color: white;
+    border-radius: 6px;
+    margin-bottom: 8px;
+  }
+
+  .affected-item:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+  }
+
+  .affected-item-info {
+    flex-grow: 1;
+  }
+
+  .affected-item-title {
+    font-weight: 600;
+    color: #333;
+    font-size: 14px;
+    margin-bottom: 4px;
+  }
+
+  .affected-item-vendor {
+    font-size: 13px;
+    color: #666;
+    font-weight: 400;
+  }
+
+  .cart-compatibility-modal-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    margin-top: 24px;
+  }
+
+  .cart-compatibility-modal-actions button {
+    padding: 12px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 14px;
+    transition: all 0.3s ease;
+    border: none;
+    min-width: 140px;
+  }
+
+  .btn-primary {
+    background-color: #F15A25;
+    color: white;
+  }
+
+  .btn-primary:hover {
+    background-color: #d14a1f;
+    transform: translateY(-1px);
+  }
+
+  .btn-secondary {
+    background-color: #f0f0f0;
+    color: #333;
+    border: 1px solid #ddd;
+  }
+
+  .btn-secondary:hover {
+    background-color: #e0e0e0;
+    border-color: #ccc;
+  }
+
+  /* ZIP Code Confirmation Modal Styles */
+  #zipCodeConfirmationModal .zip-confirmation-display {
+    text-align: center;
+    padding: 16px 20px;
+    background-color: #f8f8f8;
+    border-radius: 8px;
+    margin: 20px 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #333;
+    border-left: 3px solid #F15A25;
+    border-right: 3px solid #F15A25;
+  }
+
+  #zipCodeConfirmationModal .zip-confirmation-display .location-icon {
+    margin-right: 8px;
+    font-size: 20px;
+  }
+
+  #zipCodeConfirmationModal .zip-warning {
+    background-color: #fff8f0;
+    border: 1px solid #F15A25;
+    border-radius: 8px;
+    padding: 16px;
+    margin: 20px 0;
+    font-size: 14px;
+    color: #8b4513;
+    line-height: 1.5;
+  }
+
+  #zipCodeConfirmationModal .zip-warning strong {
+    color: #F15A25;
+    font-weight: 600;
+  }
+
+  #zipCodeConfirmationModal .cart-compatibility-modal-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    margin-top: 24px;
+  }
+
+  #zipCodeConfirmationModal .btn {
+    padding: 12px 20px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 14px;
+    transition: all 0.3s ease;
+    min-width: 160px;
+  }
+
+  #zipCodeConfirmationModal .btn-primary {
+    background-color: #F15A25;
+    color: white;
+  }
+
+  #zipCodeConfirmationModal .btn-primary:hover {
+    background-color: #d14a1f;
+    transform: translateY(-1px);
+  }
+
+  #zipCodeConfirmationModal .btn-secondary {
+    background-color: #6c757d;
+    color: white;
+  }
+
+  #zipCodeConfirmationModal .btn-secondary:hover {
+    background-color: #5a6268;
+  }
+</style>
+
+<!-- Products with Changed Pricing Modal -->
+<div id="cartCompatibilityModal" class="cart-compatibility-modal">
+  <div class="cart-compatibility-modal-content">
+    <h3>Items Affected by Location Change</h3>
+    <p>The following items in your cart may have different pricing or availability in your new delivery area:</p>
+    <div id="incompatibleItemsList" class="incompatible-items-list"></div>
+    <div class="cart-compatibility-modal-actions">
+      <button id="confirmZipChangeBtn" class="btn btn-primary">Remove Items & Update Location</button>
+      <button id="cancelZipChangeBtn" class="btn btn-secondary">Keep Current Location</button>
+    </div>
+  </div>
+</div>
+
+<!-- ZIP Code Confirmation Modal -->
+<div id="zipCodeConfirmationModal" class="cart-compatibility-modal">
+  <div class="cart-compatibility-modal-content">
+    <h3>Confirm Your Delivery Location</h3>
+    <p>Please verify your delivery ZIP code before completing your order:</p>
+    <div class="zip-confirmation-display">
+      <span class="location-icon">📍</span>
+      <span id="confirmationZipCode">Loading...</span>
+    </div>
+    <p class="zip-warning">
+      <strong>Important:</strong> Your delivery location cannot be changed once you proceed to checkout. If this isn't
+      correct, please update it now to ensure accurate pricing and delivery options.
+    </p>
+    <div class="cart-compatibility-modal-actions">
+      <button id="proceedToCheckoutBtn" class="btn btn-primary">Confirm & Proceed to Checkout</button>
+      <button id="cancelCheckoutBtn" class="btn btn-secondary">Cancel & Change ZIP Code</button>
+    </div>
+  </div>
+</div>
+
+<cart-drawer class="drawer{% if cart == empty %} is-empty{% endif %}">
+  <div id="CartDrawer" class="cart-drawer">
+    <div id="CartDrawer-Overlay" class="cart-drawer__overlay"></div>
+    <div
+      class="drawer__inner"
+      role="dialog"
+      aria-modal="true"
+      aria-label="{{ 'sections.cart.title' | t }}"
+      tabindex="-1"
+    >
+      {%- if cart == empty -%}
+        <div class="drawer__inner-empty">
+          <div class="cart-drawer__warnings center{% if settings.cart_drawer_collection != blank %} cart-drawer__warnings--has-collection{% endif %}">
+            <div class="cart-drawer__empty-content">
+              <h2 class="cart__empty-text">{{ 'sections.cart.empty' | t }}</h2>
+              <button
+                class="drawer__close"
+                type="button"
+                onclick="this.closest('cart-drawer').close()"
+                aria-label="{{ 'accessibility.close' | t }}"
+              >
+                {% render 'icon-close' %}
+              </button>
+              <a hidden href="{{ routes.all_products_collection_url }}" class="button hidden">
+                {{ 'general.continue_shopping' | t }}
+              </a>
+
+              {%- if shop.customer_accounts_enabled and customer == null -%}
+                <p class="cart__login-title h3">{{ 'sections.cart.login.title' | t }}</p>
+                <p class="cart__login-paragraph">
+                  {{ 'sections.cart.login.paragraph_html' | t: link: routes.account_login_url }}
+                </p>
+              {%- endif -%}
+            </div>
+          </div>
+          {%- if settings.cart_drawer_collection != blank -%}
+            <div class="cart-drawer__collection">
+              {% render 'card-collection', card_collection: settings.cart_drawer_collection, columns: 1 %}
+            </div>
+          {%- endif -%}
+        </div>
+      {%- endif -%}
+      <div class="drawer__header">
+        <h2 class="drawer__heading">{{ 'sections.cart.title' | t }}</h2>
+        <button
+          class="drawer__close"
+          type="button"
+          onclick="this.closest('cart-drawer').close()"
+          aria-label="{{ 'accessibility.close' | t }}"
+        >
+          {% render 'icon-close' %}
+        </button>
+      </div>
+      <cart-drawer-items
+        {% if cart == empty %}
+          class=" is-empty"
+        {% endif %}
+      >
+        <form
+          action="{{ routes.cart_url }}"
+          id="CartDrawer-Form"
+          class="cart__contents cart-drawer__form"
+          method="post"
+        >
+          <div id="CartDrawer-CartItems" class="drawer__contents js-contents">
+            {%- if cart != empty -%}
+              <div class="drawer__cart-items-wrapper">
+                <table class="cart-items" role="table">
+                  <thead role="rowgroup">
+                    <tr role="row">
+                      <th id="CartDrawer-ColumnProductImage" role="columnheader">
+                        <span class="visually-hidden">{{ 'sections.cart.headings.image' | t }}</span>
+                      </th>
+                      <th
+                        id="CartDrawer-ColumnProduct"
+                        class="caption-with-letter-spacing"
+                        scope="col"
+                        role="columnheader"
+                      >
+                        {{ 'sections.cart.headings.product' | t }}
+                      </th>
+                      <th
+                        id="CartDrawer-ColumnTotal"
+                        class="right caption-with-letter-spacing"
+                        scope="col"
+                        role="columnheader"
+                      >
+                        {{ 'sections.cart.headings.total' | t }}
+                      </th>
+                      <th id="CartDrawer-ColumnQuantity" role="columnheader">
+                        <span class="visually-hidden">{{ 'sections.cart.headings.quantity' | t }}</span>
+                      </th>
+                    </tr>
+                  </thead>
+
+                  <tbody role="rowgroup">
+                    {% comment %}
+                      {% assign cartTotal = cart.total_price %}
+                      {% assign minLimit = 7500 %}  <!-- Minimum order limit in USD -->
+
+                      {% if cartTotal < minLimit %}
+                        <p class="error-message">Error: Minimum order limit is $75. Please add more items to your cart.</p>
+                      {% endif %}
+                    {% endcomment %}
+
+                    <!-- Start: New Code added on Aug 28, 2024 -->
+
+                    {% assign specificTag = 'boxes' %}
+
+                    {% assign cartCount = 0 %}
+
+                    {% for item in cart.items %}
+                      {% assign productTags = item.product.tags | join: ',' | downcase %}
+                      {% if productTags contains specificTag %}
+                        {% assign cartCount = cartCount | plus: item.quantity %}
+                      {% endif %}
+                    {% endfor %}
+
+                    {% assign cartTotal = cart.total_price %}
+                    {% assign minLimit = 9900 %}
+                    <!-- Minimum order limit in USD -->
+
+                    {% capture errorMessage %}
+                      {% if cartTotal < minLimit  %}
+                        Minimum order limit is $99. Please add more items to your cart.
+                      {% else %}
+                        ''
+                      {% endif %}  
+                    {% endcapture %}
+
+                    <p style="display:none;">Cart count of products with tag {{ cartCount }}: {{ errorMessage }}</p>
+
+                    {% if cart.items.size > 0 %}
+                      {% assign vendor_name = cart.items.first.product.vendor %}
+                      {% render 'delivery-timer', vendor_name: vendor_name %}
+                    {% endif %}
+
+                    <p
+                      style="display:none;"
+                      data-itemCount="{{ cart.item_count | minus: cartCount }} "
+                      data-item-box="{{ cartCount }}"
+                      data-cart-total-price="{{ cartTotal }}"
+                      class="error-message-itemCOunt"
+                    >
+                      {{ errorMessage }}
+                    </p>
+                    {%- for item in cart.items -%}
+                      <tr
+                        id="CartDrawer-Item-{{ item.index | plus: 1 }}"
+                        class="cart-item"
+                        role="row"
+                        vendor="{{ item.vendor }}"
+                        data-product-id="{{ item.product_id }}"
+                        data-variant-id="{{ item.variant_id }}"
+                        {% for option in item.options_with_values %}
+                          {% if option.name == 'Local' %}
+                            data-local-option="{{ option.value }}"
+                          {% endif %}
+                        {% endfor %}
+                      >
+                        <td class="cart-item__media" role="cell" headers="CartDrawer-ColumnProductImage">
+                          {% if item.image %}
+                            {% comment %} Leave empty space due to a:empty CSS display: none rule {% endcomment %}
+                            <a href="{{ item.url }}" class="cart-item__link" tabindex="-1" aria-hidden="true"> </a>
+                            <img
+                              class="cart-item__image"
+                              src="{{ item.image | image_url: width: 300 }}"
+                              alt="{{ item.image.alt | escape }}"
+                              loading="lazy"
+                              width="150"
+                              height="{{ 150 | divided_by: item.image.aspect_ratio | ceil }}"
+                            >
+                          {% endif %}
+                        </td>
+
+                        <td class="cart-item__details" role="cell" headers="CartDrawer-ColumnProduct">
+                          {%- if settings.show_vendor -%}
+                            <p class="caption-with-letter-spacing light">{{ item.product.vendor }}</p>
+                          {%- endif -%}
+
+                          <a href="{{ item.url }}" class="cart-item__name h4 break">
+                            {{- item.product.title | escape -}}
+                          </a>
+
+                          {%- if item.original_price != item.final_price -%}
+                            <div class="cart-item__discounted-prices">
+                              <span class="visually-hidden">
+                                {{ 'products.product.price.regular_price' | t }}
+                              </span>
+                              <s class="cart-item__old-price product-option">
+                                {{- item.original_price | money -}}
+                              </s>
+                              <span class="visually-hidden">
+                                {{ 'products.product.price.sale_price' | t }}
+                              </span>
+                              <strong class="cart-item__final-price product-option">
+                                {{ item.final_price | money }}
+                              </strong>
+                            </div>
+                          {%- else -%}
+                            <div class="product-option">
+                              {{ item.original_price | money }}
+                            </div>
+                          {%- endif -%}
+
+                          {%- if item.product.has_only_default_variant == false
+                            or item.properties.size != 0
+                            or item.selling_plan_allocation != null
+                          -%}
+                            {% comment %}
+                              <dl>
+                                {%- if item.product.has_only_default_variant == false -%}
+                                  {%- for option in item.options_with_values -%}
+                                    <div class="product-option">
+                                      <dt>{{ option.name }}:</dt>
+                                      <dd>
+                                        {{ option.value -}}
+                                        {%- unless forloop.last %}, {% endunless %}
+                                      </dd>
+                                    </div>
+                                  {%- endfor -%}
+                                {%- endif -%}
+
+                                {%- for property in item.properties -%}
+                                  {%- assign property_first_char = property.first | slice: 0 -%}
+                                  {%- if property.last != blank and property_first_char != '_' -%}
+                                    <div class="product-option">
+                                      <dt>{{ property.first }}:</dt>
+                                      <dd>
+                                        {%- if property.last contains '/uploads/' -%}
+                                          <a
+                                            href="{{ property.last }}"
+                                            class="link"
+                                            target="_blank"
+                                            aria-describedby="a11y-new-window-message"
+                                          >
+                                            {{ property.last | split: '/' | last }}
+                                          </a>
+                                        {%- else -%}
+                                          {{ property.last }}
+                                        {%- endif -%}
+                                      </dd>
+                                    </div>
+                                  {%- endif -%}
+                                {%- endfor -%}
+                              </dl>
+                            {% endcomment %}
+                            <p class="product-option">{{ item.selling_plan_allocation.selling_plan.name }}</p>
+                          {%- endif -%}
+
+                          <ul
+                            class="discounts list-unstyled"
+                            role="list"
+                            aria-label="{{ 'customer.order.discount' | t }}"
+                          >
+                            {%- for discount in item.discounts -%}
+                              <li class="discounts__discount">
+                                {%- render 'icon-discount' -%}
+                                {{ discount.title }}
+                              </li>
+                            {%- endfor -%}
+                          </ul>
+                        </td>
+
+                        <td class="cart-item__total right" role="cell" headers="CartDrawer-ColumnTotal">
+                          <div class="loading-overlay hidden">
+                            <div class="loading-overlay__spinner">
+                              <svg
+                                aria-hidden="true"
+                                focusable="false"
+                                class="spinner"
+                                viewBox="0 0 66 66"
+                                xmlns="http://www.w3.org/2000/svg"
+                              >
+                                <circle class="path" fill="none" stroke-width="6" cx="33" cy="33" r="30"></circle>
+                              </svg>
+                            </div>
+                          </div>
+                          <cart-remove-button
+                            id="CartDrawer-Remove-{{ item.index | plus: 1 }}"
+                            data-index="{{ item.index | plus: 1 }}"
+                          >
+                            <button
+                              type="button"
+                              class="button button--tertiary"
+                              aria-label="{{ 'sections.cart.remove_title' | t: title: item.title }}"
+                            >
+                              {% render 'icon-remove' %}
+                            </button>
+                          </cart-remove-button>
+                        </td>
+
+                        <td class="cart-item__totals " role="cell" headers="CartDrawer-ColumnTotal">
+                          <div class="cart-item__price-wrapper">
+                            {%- if item.original_line_price != item.final_line_price -%}
+                              <div class="cart-item__discounted-prices">
+                                <span class="visually-hidden">
+                                  {{ 'products.product.price.regular_price' | t }}
+                                </span>
+                                <s class="cart-item__old-price price price--end">
+                                  {{ item.original_line_price | money }}
+                                </s>
+                                <span class="visually-hidden">
+                                  {{ 'products.product.price.sale_price' | t }}
+                                </span>
+                                <span class="price price--end">
+                                  {{ item.final_line_price | money }}
+                                </span>
+                              </div>
+                            {%- else -%}
+                              <span class="price price--end">
+                                {{ item.original_line_price | money }}
+                              </span>
+                            {%- endif -%}
+
+                            {%- if item.variant.available and item.unit_price_measurement -%}
+                              <div class="unit-price caption">
+                                <span class="visually-hidden">{{ 'products.product.price.unit_price' | t }}</span>
+                                {{ item.variant.unit_price | money }}
+                                <span aria-hidden="true">/</span>
+                                <span class="visually-hidden"
+                                  >&nbsp;{{ 'accessibility.unit_price_separator' | t }}&nbsp;</span
+                                >
+                                {%- if item.variant.unit_price_measurement.reference_value != 1 -%}
+                                  {{- item.variant.unit_price_measurement.reference_value -}}
+                                {%- endif -%}
+                                {{ item.variant.unit_price_measurement.reference_unit }}
+                              </div>
+                            {%- endif -%}
+                            <p>Total</p>
+                          </div>
+                        </td>
+                        <td class="cart-item__quantity" role="cell" headers="CartDrawer-ColumnQuantity">
+                          <div class="cart-item__quantity-wrapper">
+                            <quantity-input class="quantity cart-quantity">
+                              <button class="quantity__button no-js-hidden" name="minus" type="button">
+                                <span class="visually-hidden">
+                                  {{- 'products.product.quantity.decrease' | t: product: item.product.title | escape -}}
+                                </span>
+                                {% render 'icon-minus' %}
+                              </button>
+                              <input
+                                class="quantity__input"
+                                type="number"
+                                data-quantity-variant-id="{{ item.variant.id }}"
+                                name="updates[]"
+                                value="{{ item.quantity }}"
+                                {% # theme-check-disable %}
+                                data-cart-quantity="{{ cart | item_count_for_variant: item.variant.id }}"
+                                min="{{ item.variant.quantity_rule.min }}"
+                                {% if item.variant.quantity_rule.max != null %}
+                                  max="{{ item.variant.quantity_rule.max }}"
+                                {% endif %}
+                                step="{{ item.variant.quantity_rule.increment }}"
+                                {% # theme-check-enable %}
+                                aria-label="{{ 'products.product.quantity.input_label' | t: product: item.product.title | escape }}"
+                                id="Drawer-quantity-{{ item.index | plus: 1 }}"
+                                data-index="{{ item.index | plus: 1 }}"
+                              >
+                              <button class="quantity__button no-js-hidden" name="plus" type="button">
+                                <span class="visually-hidden">
+                                  {{- 'products.product.quantity.increase' | t: product: item.product.title | escape -}}
+                                </span>
+                                {% render 'icon-plus' %}
+                              </button>
+                            </quantity-input>
+                          </div>
+                          <p>Quantity</p>
+                          <div
+                            id="CartDrawer-LineItemError-{{ item.index | plus: 1 }}"
+                            class="cart-item__error"
+                            role="alert"
+                          >
+                            <small class="cart-item__error-text"></small>
+                            <svg
+                              aria-hidden="true"
+                              focusable="false"
+                              class="icon icon-error"
+                              viewBox="0 0 13 13"
+                            >
+                              <circle cx="6.5" cy="6.50049" r="5.5" stroke="white" stroke-width="2"/>
+                              <circle cx="6.5" cy="6.5" r="5.5" fill="#EB001B" stroke="#EB001B" stroke-width="0.7"/>
+                              <path d="M5.87413 3.52832L5.97439 7.57216H7.02713L7.12739 3.52832H5.87413ZM6.50076 9.66091C6.88091 9.66091 7.18169 9.37267 7.18169 9.00504C7.18169 8.63742 6.88091 8.34917 6.50076 8.34917C6.12061 8.34917 5.81982 8.63742 5.81982 9.00504C5.81982 9.37267 6.12061 9.66091 6.50076 9.66091Z" fill="white"/>
+                              <path d="M5.87413 3.17832H5.51535L5.52424 3.537L5.6245 7.58083L5.63296 7.92216H5.97439H7.02713H7.36856L7.37702 7.58083L7.47728 3.537L7.48617 3.17832H7.12739H5.87413ZM6.50076 10.0109C7.06121 10.0109 7.5317 9.57872 7.5317 9.00504C7.5317 8.43137 7.06121 7.99918 6.50076 7.99918C5.94031 7.99918 5.46982 8.43137 5.46982 9.00504C5.46982 9.57872 5.94031 10.0109 6.50076 10.0109Z" fill="white" stroke="#EB001B" stroke-width="0.7">
+                            </svg>
+                          </div>
+                        </td>
+                      </tr>
+                    {%- endfor -%}
+                  </tbody>
+                </table>
+              </div>
+            {%- endif -%}
+            <p id="CartDrawer-LiveRegionText" class="visually-hidden" role="status"></p>
+            <p id="CartDrawer-LineItemStatus" class="visually-hidden" aria-hidden="true" role="status">
+              {{ 'accessibility.loading' | t }}
+            </p>
+          </div>
+          <div id="CartDrawer-CartErrors" role="alert"></div>
+        </form>
+      </cart-drawer-items>
+      <div class="drawer__footer">
+        {%- if settings.show_cart_note -%}
+          <details id="Details-CartDrawer">
+            <summary>
+              <span class="summary__title">
+                {{ 'sections.cart.note' | t }}
+                {% render 'icon-caret' %}
+              </span>
+            </summary>
+            <cart-note class="cart__note field">
+              <label class="visually-hidden" for="CartDrawer-Note">{{ 'sections.cart.note' | t }}</label>
+              <textarea
+                id="CartDrawer-Note"
+                class="text-area text-area--resize-vertical field__input"
+                name="note"
+                placeholder="{{ 'sections.cart.note' | t }}"
+              >{{ cart.note }}</textarea>
+            </cart-note>
+          </details>
+        {%- endif -%}
+
+        <!-- Start blocks -->
+        <!-- Subtotals -->
+
+        <div class="cart-drawer__footer" {{ block.shopify_attributes }}>
+          <div class="totals" role="status">
+            <h2 class="totals__subtotal">{{ 'sections.cart.subtotal' | t }}</h2>
+            <p class="totals__subtotal-value">{{ cart.total_price | money_with_currency }}</p>
+          </div>
+
+          <div>
+            {%- if cart.cart_level_discount_applications.size > 0 -%}
+              <ul class="discounts list-unstyled" role="list" aria-label="{{ 'customer.order.discount' | t }}">
+                {%- for discount in cart.cart_level_discount_applications -%}
+                  <li class="discounts__discount discounts__discount--end">
+                    {%- render 'icon-discount' -%}
+                    {{ discount.title }}
+                    (-{{ discount.total_allocated_amount | money }})
+                  </li>
+                {%- endfor -%}
+              </ul>
+            {%- endif -%}
+          </div>
+
+          <small class="tax-note caption-large rte">
+            {%- if cart.taxes_included and shop.shipping_policy.body != blank -%}
+              {{ 'sections.cart.taxes_included_and_shipping_policy_html' | t: link: shop.shipping_policy.url }}
+            {%- elsif cart.taxes_included -%}
+              {{ 'sections.cart.taxes_included_but_shipping_at_checkout' | t }}
+            {%- elsif shop.shipping_policy.body != blank -%}
+              {{ 'sections.cart.taxes_and_shipping_policy_at_checkout_html' | t: link: shop.shipping_policy.url }}
+            {%- else -%}
+              {{ 'sections.cart.taxes_and_shipping_at_checkout' | t }}
+            {%- endif -%}
+          </small>
+        </div>
+
+        <!-- CTAs -->
+        <p style="">
+          <input style="" type="checkbox" id="agree_d">
+          <label style="font-size:12px;" for="agree_d">
+            I agree with the <a style="color:#000;" href="/pages/terms-and-conditions">terms and conditions</a>.
+          </label>
+        </p>
+        <div class="cart__ctas" {{ block.shopify_attributes }}>
+          <noscript>
+            <button type="submit" class="cart__update-button button button--secondary" form="CartDrawer-Form">
+              {{ 'sections.cart.update' | t }}
+            </button>
+          </noscript>
+
+          <button
+            type="button"
+            id="CartDrawer-Checkout"
+            class="cart__checkout-button button"
+            {% if cart == empty %}
+              disabled
+            {% endif %}
+          >
+            {{ 'sections.cart.checkout' | t }}
+          </button>
+
+          <!-- Hidden form for actual checkout -->
+          <form id="hidden-checkout-form" action="{{ routes.cart_url }}" method="post" style="display: none;">
+            <button type="submit" name="checkout" id="actual-checkout-btn"></button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      console.log(`[${new Date().toISOString()}] DOM content loaded, initializing cart compatibility checker`);
+      
+      // Helper for debug logging with timestamps
+      const debugLog = (message, data = null) => {
+        const timestamp = new Date().toISOString();
+        if (data !== null) {
+          console.log(`[${timestamp}] ${message}`, data);
+        } else {
+          console.log(`[${timestamp}] ${message}`);
+        }
+      };
+      
+      debugLog("Initializing window.cartCompatibilityChecker");
+      
+      // Create the cart compatibility checker object
+      window.cartCompatibilityChecker = {
+        // Store affected items
+        affectedItems: [],
+        
+        // Check if cart items are compatible with the new ZIP code
+        checkCartCompatibility: async function(newZipCode, callback) {
+          debugLog(`Starting checkCartCompatibility with ZIP: ${newZipCode}`);
+          const self = this;
+          self.affectedItems = [];
+          
+          try {
+            debugLog("Fetching cart data");
+            
+            // Get current cart data
+            const response = await fetch('/cart.js');
+            const cart = await response.json();
+            debugLog("Cart data retrieved", cart);
+            
+            if (!cart.items || cart.items.length === 0) {
+              // No items in cart, no compatibility issues
+              debugLog("Cart is empty, no compatibility check needed");
+              callback(false);
+              return;
+            }
+            
+            debugLog(`Cart has ${cart.items.length} items, checking compatibility for each`);
+            
+            // Process each item in the cart
+            const promises = cart.items.map(item => {
+              debugLog(`Checking compatibility for item: ${item.title} (ID: ${item.id})`);
+              debugLog(`incompatibility checking: ${self.checkItemCompatibility(item, newZipCode)}`);
+              return self.checkItemCompatibility(item, newZipCode);
+            });
+            
+            debugLog("Processing all compatibility checks");
+            
+            await Promise.all(promises);
+            
+            if (self.affectedItems.length > 0) {
+              // Show modal for incompatible items
+              debugLog(`Found ${self.affectedItems.length} incompatible items`, self.affectedItems);
+              self.showCompatibilityModal(newZipCode, callback);
+            } else {
+              // No incompatible items found
+              debugLog("No incompatible items found, proceeding with ZIP change");
+              callback(false);
+            }
+          } catch (error) {
+            console.error(`[${new Date().toISOString()}] Error in checkCartCompatibility:`, error);
+            debugLog("Error occurred during compatibility check, defaulting to allow ZIP change");
+            callback(false);
+          }
+        },
+        
+        // Check if an individual item is compatible with new ZIP code
+        checkItemCompatibility: async function(item, newZipCode) {
+          debugLog(`Checking item compatibility for ${item.title}`);
+          const self = this;
+          
+          try {
+            // Check if item has a "Local" option
+            let hasLocalOption = false;
+            let localOptionValue = null;
+            let vendorName = item.vendor;
+            
+            debugLog(`Item vendor: ${vendorName}`);
+            
+            // Look for Local option in item properties
+            if (item.options_with_values && Array.isArray(item.options_with_values)) {
+              debugLog("Checking item options_with_values for Local option", item.options_with_values);
+              for (let i = 0; i < item.options_with_values.length; i++) {
+                const option = item.options_with_values[i];
+                debugLog(`Checking option: ${option.name} = ${option.value}`);
+                if (option.name === 'Local' || option.name.toLowerCase() === 'local') {
+                  hasLocalOption = true;
+                  localOptionValue = option.value;
+                  debugLog(`Found Local option with value: ${option.value}`);
+                  break;
+                }
+              }
+            } else {
+              debugLog("No item.options_with_values found or it's not an array");
+            }
+
+            debugLog(`Final hasLocalOption: ${hasLocalOption}, localOptionValue: ${localOptionValue}`);
+            
+            // If this item has Local: Yes, verify ZIP code is supported
+            if (hasLocalOption) {
+              debugLog(`Item has Local: ${localOptionValue}, checking vendor ZIP support for ${vendorName} and ZIP: ${newZipCode}`);
+              
+              debugLog("Checking vendor ZIP support");
+              
+              const isSupported = await self.checkVendorZipSupport(vendorName, newZipCode);
+              debugLog(`Vendor ZIP support check result: ${isSupported}`);
+              let val=localOptionValue === 'Yes';
+              debugLog(`val: ${val} ${localOptionValue}`);
+              debugLog(`Vendor ZIP support check result: ${isSupported}`);
+              if (
+                (!isSupported && localOptionValue == 'Yes') ||
+                (isSupported && localOptionValue == 'No')
+              ) {
+                // ZIP not supported for local delivery
+                debugLog("Delivery price affected, adding to affected items");
+                const exists = self.affectedItems.some(existingItem => existingItem.id === item.id);
+                if (!exists) {
+                  self.affectedItems.push({
+                    id: item.id,
+                    key: item.key,
+                    title: item.title,
+                    vendor: vendorName,
+                    image: item.image
+                  });
+                }
+
+              } else {
+                debugLog("ZIP is supported for normal delivery");
+              }
+            } else {
+              debugLog("Item does not have Local option");
+            }
+          } catch (error) {
+            console.error(`[${new Date().toISOString()}] Error in checkItemCompatibility:`, error);
+          }
+        },
+        
+        // Check if vendor supports delivery to the ZIP code
+        checkVendorZipSupport: async function(vendorName, zipCode) {
+          debugLog(`Checking vendor ZIP support for ${vendorName} and ZIP: ${zipCode}`);
+          
+          try {
+            debugLog("Fetching vendor collection");
+            // Fetch collections to find matching vendor
+            // const response = await fetch('/collections.json');
+            // const collectionsData = await response.json();
+            const collectionsData = [
+              {% for collection in collections %}
+                {
+                  id: "{{ collection.id }}",
+                  title: "{{ collection.title | escape }}",
+                  handle: "{{ collection.handle }}",
+                  zip_codes: {{ collection.metafields.custom.zip_codes | parse_json | default: '[]' }}
+                }{% unless forloop.last %},{% endunless %}
+              {% endfor %}
+            ];
+
+            debugLog("Collections data fetched", collectionsData);
+            
+            // Find collection that matches the vendor name
+            const matchingCollection = collectionsData.find(collection => 
+              collection.title.toLowerCase() === vendorName.toLowerCase()
+            );
+            
+            if (!matchingCollection) {
+              debugLog(`No collection found matching vendor name: ${vendorName}`);
+              return false;
+            }
+            
+            debugLog(`Found matching collection: ${matchingCollection.title}`, matchingCollection);
+            
+            
+            // Check if collection has zip_codes metafield
+            if (!matchingCollection.zip_codes || matchingCollection.zip_codes.length === 0) {
+              debugLog("Collection does not have zip_codes metafield");
+              return false;
+            }
+            
+            // Parse the zip codes array
+            const zipCodesValue = matchingCollection.zip_codes;
+            debugLog("Found zip_codes metafield", zipCodesValue);
+            
+            let supportedZipCodes = [];
+            if (typeof zipCodesValue === 'string') {
+              supportedZipCodes = JSON.parse(zipCodesValue);
+            } else if (Array.isArray(zipCodesValue)) {
+              supportedZipCodes = zipCodesValue;
+            }
+            
+            debugLog("Parsed supported ZIP codes", supportedZipCodes);
+            
+            // Check if the zipCode is in the supported list
+            const isSupported = supportedZipCodes.includes(zipCode);
+            debugLog(`ZIP ${zipCode} is ${isSupported ? 'supported' : 'not supported'} by vendor ${vendorName}`);
+            
+            return isSupported;
+            
+          } catch (error) {
+            console.error(`[${new Date().toISOString()}] Error in checkVendorZipSupport:`, error);
+            debugLog("Error checking vendor ZIP support, defaulting to not supported");
+            return false;
+          }
+        },          
+        // Show modal for incompatible items
+        showCompatibilityModal: function(newZipCode, callback) {
+          debugLog("Showing compatibility modal for incompatible items");
+          
+          const modal = document.getElementById('cartCompatibilityModal');
+          const itemsList = document.getElementById('incompatibleItemsList');
+          const confirmBtn = document.getElementById('confirmZipChangeBtn');
+          const cancelBtn = document.getElementById('cancelZipChangeBtn');
+          
+          if (!modal || !itemsList || !confirmBtn || !cancelBtn) {
+            debugLog("Error: One or more modal elements not found", {
+              modalFound: !!modal,
+              itemsListFound: !!itemsList,
+              confirmBtnFound: !!confirmBtn,
+              cancelBtnFound: !!cancelBtn
+            });
+            callback(false);
+            return;
+          }
+          
+          // Clear previous items list
+          itemsList.innerHTML = '';
+          debugLog("Cleared previous items list");
+          
+          // Add each affected item to the list
+          this.affectedItems.forEach((item, index) => {
+            debugLog(`Adding item ${index + 1} to incompatible items list: ${item.title}`);
+            const itemElement = document.createElement('div');
+            itemElement.classList.add('affected-item');
+            itemElement.innerHTML = `
+              <div class="affected-item-info">
+                <div class="affected-item-title">${item.title}</div>
+                <div class="affected-item-vendor">by ${item.vendor}</div>
+              </div>
+            `;
+            itemsList.appendChild(itemElement);
+          });
+          
+          // Set up event listeners
+          const handleConfirm = async () => {
+            debugLog("Confirm button clicked, removing affected items");
+            
+            // Remove affected items and proceed with ZIP change
+            try {
+              debugLog("Removing affected items");
+              
+              await this.removeAffectedItems();
+              debugLog("Affected items removed successfully");
+              
+              // Clean up event listeners
+              confirmBtn.removeEventListener('click', handleConfirm);
+              cancelBtn.removeEventListener('click', handleCancel);
+              debugLog("Event listeners removed");
+              
+              // Hide modal
+              modal.classList.remove('active');
+              debugLog("Modal hidden");
+              
+              // Allow ZIP change to proceed
+              debugLog("Allowing ZIP change to proceed");
+              callback(false);
+            } catch (error) {
+              console.error(`[${new Date().toISOString()}] Error in handleConfirm:`, error);
+              callback(false);
+            }
+          };
+          
+          const handleCancel = () => {
+            debugLog("Cancel button clicked, preventing ZIP change");
+            
+            // Clean up event listeners
+            confirmBtn.removeEventListener('click', handleConfirm);
+            cancelBtn.removeEventListener('click', handleCancel);
+            debugLog("Event listeners removed");
+            
+            // Hide modal
+            modal.classList.remove('active');
+            debugLog("Modal hidden");
+            
+            // Prevent ZIP change
+            debugLog("Preventing ZIP change");
+            callback(true);
+          };
+          
+          confirmBtn.addEventListener('click', handleConfirm);
+          cancelBtn.addEventListener('click', handleCancel);
+          debugLog("Event listeners added for confirm and cancel buttons");
+          
+          // Show modal
+          modal.classList.add('active');
+          debugLog("Modal displayed");
+        },
+        
+        // Remove affected items from cart
+        removeAffectedItems: async function() {
+          debugLog(`Removing ${this.affectedItems.length} affected items from cart`);
+          const updates = {};
+          
+          // Set quantity to 0 for affected items
+          this.affectedItems.forEach(item => {
+            debugLog(`Setting quantity to 0 for item: ${item.title} (key: ${item.key})`);
+            updates[item.key] = 0;
+          });
+          
+          debugLog("Cart updates prepared", updates);
+          
+          try {
+            debugLog("Updating cart");
+            
+            // Update cart
+            const response = await fetch('/cart/update.js', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                updates: updates
+              })
+            });
+            
+            const updatedCart = await response.json();
+            debugLog("Cart updated successfully", updatedCart);
+            return updatedCart;
+          } catch (error) {
+            console.error(`[${new Date().toISOString()}] Error removing incompatible items:`, error);
+            throw error;
+          }
+        }
+      };
+      
+      debugLog("window.cartCompatibilityChecker initialization complete");
+    });
+  </script>
+  <script>
+  document.addEventListener('DOMContentLoaded', function() {
+    console.log(`[${new Date().toISOString()}] Initializing ZIP code confirmation for checkout`);
+    
+    // Helper for debug logging with timestamps
+    const debugLog = (message, data = null) => {
+      const timestamp = new Date().toISOString();
+      if (data !== null) {
+        console.log(`[${timestamp}] ZIP Confirmation: ${message}`, data);
+      } else {
+        console.log(`[${timestamp}] ZIP Confirmation: ${message}`);
+      }
+    };
+    
+    // Initialize ZIP code confirmation checker
+    const zipCodeConfirmation = {
+      elements: {
+        checkoutBtn: document.getElementById('CartDrawer-Checkout'),
+        confirmationModal: document.getElementById('zipCodeConfirmationModal'),
+        confirmationZipCode: document.getElementById('confirmationZipCode'),
+        proceedBtn: document.getElementById('proceedToCheckoutBtn'),
+        cancelBtn: document.getElementById('cancelCheckoutBtn'),
+        hiddenForm: document.getElementById('hidden-checkout-form'),
+        actualCheckoutBtn: document.getElementById('actual-checkout-btn')
+      },
+      
+      init: function() {
+        debugLog('Initializing ZIP code confirmation');
+        this.setupEventListeners();
+      },
+      
+      setupEventListeners: function() {
+        const self = this;
+        
+        // Intercept checkout button click
+        if (this.elements.checkoutBtn) {
+          this.elements.checkoutBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            debugLog('Checkout button clicked, showing ZIP confirmation');
+            self.showZipConfirmation();
+          });
+        }
+        
+        // Handle proceed to checkout
+        if (this.elements.proceedBtn) {
+          this.elements.proceedBtn.addEventListener('click', function() {
+            debugLog('User confirmed ZIP code, proceeding to checkout');
+            self.proceedToCheckout();
+          });
+        }
+        
+        // Handle cancel checkout
+        if (this.elements.cancelBtn) {
+          this.elements.cancelBtn.addEventListener('click', function() {
+            debugLog('User cancelled checkout to change ZIP');
+            self.cancelCheckout();
+          });
+        }
+        
+        // Close modal when clicking outside
+        if (this.elements.confirmationModal) {
+          this.elements.confirmationModal.addEventListener('click', function(e) {
+            if (e.target === self.elements.confirmationModal) {
+              debugLog('User clicked outside modal, cancelling checkout');
+              self.cancelCheckout();
+            }
+          });
+        }
+      },
+      
+      showZipConfirmation: function() {
+        debugLog('Showing ZIP code confirmation modal');
+        
+        // Get current ZIP code from localStorage or location tracker
+        let currentZip = null;
+        
+        // Try to get from localStorage first
+        if (typeof(Storage) !== "undefined") {
+          currentZip = localStorage.getItem('userZipCode');
+          debugLog('Retrieved ZIP from localStorage', currentZip);
+        }
+        
+        // If no ZIP in localStorage, try to get from location tracker display
+        if (!currentZip) {
+          const locationDisplay = document.getElementById('currentLocation');
+          if (locationDisplay && locationDisplay.textContent) {
+            const locationText = locationDisplay.textContent;
+            const zipMatch = locationText.match(/ZIP:\s*(\d{5})/);
+            if (zipMatch) {
+              currentZip = zipMatch[1];
+              debugLog('Retrieved ZIP from location display', currentZip);
+            }
+          }
+        }
+        
+        // Display the ZIP code in the confirmation modal
+        if (currentZip && this.elements.confirmationZipCode) {
+          this.elements.confirmationZipCode.textContent = currentZip;
+          debugLog('Displaying ZIP in confirmation modal', currentZip);
+        } else {
+          this.elements.confirmationZipCode.textContent = 'Not detected - Please set your location first';
+          debugLog('No ZIP code found');
+          
+          // Disable proceed button if no ZIP
+          if (this.elements.proceedBtn) {
+            this.elements.proceedBtn.disabled = true;
+            this.elements.proceedBtn.textContent = 'Please Set Your ZIP Code First';
+          }
+          
+          // Show location tracker modal instead
+          setTimeout(() => {
+            this.cancelCheckout();
+            if (window.locationTracker && typeof window.locationTracker.showModal === 'function') {
+              window.locationTracker.showModal();
+            }
+          }, 2000);
+          
+          return;
+        }
+        
+        // Show the confirmation modal
+        if (this.elements.confirmationModal) {
+          this.elements.confirmationModal.classList.add('active');
+          debugLog('ZIP confirmation modal displayed');
+        }
+      },
+      
+      proceedToCheckout: function() {
+        debugLog('Proceeding to actual checkout');
+        
+        // Hide the confirmation modal
+        if (this.elements.confirmationModal) {
+          this.elements.confirmationModal.classList.remove('active');
+        }
+        
+        // Submit the hidden checkout form
+        if (this.elements.actualCheckoutBtn) {
+          debugLog('Triggering actual checkout form submission');
+          this.elements.actualCheckoutBtn.click();
+        }
+      },
+      
+      cancelCheckout: function() {
+        debugLog('Checkout cancelled by user');
+        
+        // Hide the confirmation modal
+        if (this.elements.confirmationModal) {
+          this.elements.confirmationModal.classList.remove('active');
+        }
+        
+        // Optionally show the location tracker modal for user to change ZIP
+        // This depends on your location tracker implementation
+        debugLog('User can now change ZIP code using the location tracker');
+      }
+    };
+    
+    // Initialize the ZIP code confirmation
+    zipCodeConfirmation.init();
+    debugLog('ZIP code confirmation initialization complete');
+  });
+  </script>
+</cart-drawer>
+
+<script>
+  let minTotalPrice = 9900;
+  let pdbutton = document.querySelector('#agree_d');
+  let kartbuttoncheckout = document.querySelector('#CartDrawer-Checkout');
+  let cartDrawererrorMessage = document.querySelector('.error-message-itemCOunt');
+
+  let cartTotalPrice = cartDrawererrorMessage.getAttribute("data-cart-total-price");
+
+  let totalPriceFulfilled = cartTotalPrice > minTotalPrice;
+
+  console.log('(cart-drawer) total cart price:' + cartTotalPrice);
+  console.log('(cart-drawer) total price fullfilled:' + totalPriceFulfilled);
+
+  if(totalPriceFulfilled) {
+    cartDrawererrorMessage.style.display = 'none';
+  }else{
+    cartDrawererrorMessage.style.display = 'block';
+  }
+  let opp = 0;
+  pdbutton.addEventListener('click',()=>{
+    if(opp == 0 && totalPriceFulfilled){
+      opp++
+      kartbuttoncheckout.removeAttribute('disabled')
+    }else if(opp == 1){
+      opp--
+      kartbuttoncheckout.setAttribute('disabled',true)
+    }
+  })
+
+  document.addEventListener('DOMContentLoaded', function () {
+    function isIE() {
+      const ua = window.navigator.userAgent;
+      const msie = ua.indexOf('MSIE ');
+      const trident = ua.indexOf('Trident/');
+
+      return msie > 0 || trident > 0;
+    }
+
+    if (!isIE()) return;
+    const cartSubmitInput = document.createElement('input');
+    cartSubmitInput.setAttribute('name', 'checkout');
+    cartSubmitInput.setAttribute('type', 'hidden');
+    document.querySelector('#cart').appendChild(cartSubmitInput);
+    document.querySelector('#checkout').addEventListener('click', function (event) {
+      document.querySelector('#cart').submit();
+    });
+  });
+</script>
