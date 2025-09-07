@@ -81,7 +81,7 @@
             {%- when 'text' -%}
               {% assign vendor_name = product.vendor %}
               {% render 'delivery-timer', vendor_name: vendor_name %}
-
+             <p> Feat1</p>
               <p
                 data-vendor="{{ product.vendor }}"
                 class="product__text inline-richtext{% if block.settings.text_style == 'uppercase' %} caption-with-letter-spacing{% elsif block.settings.text_style == 'subtitle' %} subtitle{% endif %}"
@@ -91,14 +91,14 @@
               </p>
             {%- when 'title' -%}
               <div class="product__title" {{ block.shopify_attributes }}>
-                <h1>{{ product.title | escape }}</h1>
+                <h1>{{ product.title | escape }} Haha</h1>
                 <!-- Start Areviews product title Rating Code -->
                 <div class="areviews_header_stars"></div>
                 <!-- End Areviews product title Rating Code -->
 
                 <a href="{{ product.url }}" class="product__title">
                   <h2 class="h1">
-                    {{ product.title | escape }}
+                    {{ product.title | escape }}HAHA
                   </h2>
                 </a>
               </div>
