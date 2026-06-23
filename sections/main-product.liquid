@@ -793,32 +793,7 @@
    }).then(data => {
      const cartVendors = new Set(data.items.map(item => item.vendor));
      console.log(cartVendors)
-     if (cartVendors.size > 0 && !cartVendors.has(productVendor)) {
-       if (confirm('Adding this item will clear your cart. Are you sure you want to continue?')) {
-         setTimeout(()=>{
-           $.ajax({
-             type: "POST",
-             url: '/cart/clear.js',
-             success: function(){
-               $.ajax({
-                 type: 'POST',
-                 url: '/cart/add.js',
-                 data: {
-                   quantity: quantityVatiany.value,
-                   id: pVariant,
-                 },
-                 dataType: 'json',
-                 success: function (data) {
-                   location.reload();
-                 }
-               });
-             },
-             dataType: 'json'
-           });
-           alert('Your cart has been cleared. You can now add products from the vendor "' + productVendor + '" to your cart.');
-         },2000)
-       };
-     } else {
+ 
        console.log('thisisworking ot not')
        console.log(pVariant)
        console.log(quantityVatiany.value)
@@ -834,7 +809,7 @@
            location.reload();
          }
        });
-     };
+
    });
   };
 </script>
