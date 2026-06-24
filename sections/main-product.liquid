@@ -794,21 +794,21 @@
      const cartVendors = new Set(data.items.map(item => item.vendor));
      console.log(cartVendors)
  
-       console.log('thisisworking ot not')
-       console.log(pVariant)
-       console.log(quantityVatiany.value)
-       $.ajax({
-         type: 'POST',
-         url: '/cart/add.js',
-         data: {
-           quantity: quantityVatiany.value,
-           id: pVariant,
-         },
-         dataType: 'json',
-         success: function (data) {
-           location.reload();
-         }
-       });
+     console.log('thisisworking ot not')
+     console.log(pVariant)
+     console.log(quantityVatiany.value)
+     $.ajax({
+      type: 'POST',
+      url: '/cart/add.js',
+      data: {
+        quantity: quantityVatiany.value,
+        id: pVariant,
+      },
+      dataType: 'json',
+      success: function (data) {
+        location.reload();
+      }
+    });
 
    });
   };
